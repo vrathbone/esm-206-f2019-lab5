@@ -9,22 +9,82 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## R Markdown
+## Objectives:
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+- Getting counts for different groups
+- Use {lubridata} to parse dates
+- Find confidence intervals & do t-tests with t.test()
+- Heat with geom_tile()
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+# Attach packages
 
-```{r cars}
-summary(cars)
+```{r, include = FALSE}
+
+library(tidyverse)
+library(here)
+library(janitor)
+
+
+
+```
+```{r}
+
+#Import Lobster data
+# Case format = tidy format 
+# Double check you don't have frequency table data (currently how lobster_count data is in))
+# Time to tidy it with na = 
+
+lobster_abundace <- read_csv(here::here("data", "lobster_abundance.csv"), 
+                             na = "-99999") %>% 
+  clean_names()
+
+
+
 ```
 
-## Including Plots
+Use the tidyr::uncount() function to expand a frequency variable
 
-You can also embed plots, for example:
+```{r}
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+lobster_tidy <- lobster_abundace %>% 
+  uncount(lobster_count)
+
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+Yey! Now each lobster has its own row. This is tidy format.
+
+Let's look at this data in a bunch of different ways.
+
+```{r}
+
+ggplot(data = lobster_tidy, aes(x = site, 
+                                y = size_mm)) +
+  geom_jitter(aes(color = site),
+              width = 0.2, 
+              alpha = 0.3) #alpha is for transparacy
+
+# Try a violin plot, good to look at datasets with large observations 
+
+ggplot(data = lobster_tidy, aes(x = site, 
+                                y = size_mm)) +
+  geom_violin(aes(color = site),
+              alpha = 0.3) 
+  
+
+# Try histogram 
+
+ggplot(data = lobster_tidy, aes(x = size_mm)) +
+  geom_histogram(aes(fill = site)) +
+  facet_wrap(~site, scales = "free") # breaks out data into each group by argument, here it's by site
+
+# Now a QQ plot
+
+ggplot(data = lobster_tidy, aes(sample = size_mm)) +
+  geom_qq(size = 0.5) +
+  facet_wrap(~site, scales = "free")
+
+# In the qq plot, we observe AQUE is a relatively "linear" distribution. CARP and IVEE has a number of observations that are larger than expected for a totally normal sample distribution. MOHK and NAPL is relatively normally distributed too. Overall size_mm data is realtively normally distributed.  
+
+```
+
+Now, we're going to look at the data 
