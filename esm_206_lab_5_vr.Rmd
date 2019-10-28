@@ -87,4 +87,141 @@ ggplot(data = lobster_tidy, aes(sample = size_mm)) +
 
 ```
 
-Now, we're going to look at the data 
+Use 'lubridate' to parse dates and times. 
+Going to use mutate to add new column that has a date that is an actual date note a "character" classification
+```{r}
+
+# Make sure to specify the package when using 'lubridate'
+# Can use class(lobster_tidy$date) in console to check how the date column is classified
+# When changing the MM/DD/YYYY make sure to know the order of the date column, ours is in MDY
+# Use lubridate to convert dates to "ISO 1806" date format YYYY-MM-DD
+
+lobster_date <- lobster_tidy %>% 
+  mutate(
+    date_new = lubridate::mdy(date) #give column name in ()
+  )
+
+```
+
+Parse the 'Date' column to get the different pieces (month, year) separated
+```{r}
+
+# By using lubridate::month function, it changes the class to "ordered" and "factor" so that all of the months are in order and known as a month factor instead of month as a charater (like if you use abb.numeric function)
+
+lobster_parse_date <- lobster_date %>% 
+  mutate(
+    obs_month = lubridate::month(date_new, label = TRUE),
+    obs_year = lubridate::year(date_new))
+```
+
+Count lobsters by different groupings...
+
+Let's say we want to ount the numbder of lobsters by year and month.
+```{r}
+
+# Can use group_by and summarize function, BUT can also use c'ount()'
+# COUNT function says group_by, then summarize, then fine the length of something, and can also ungroup data (great for catagorical tidy data)
+
+lobster_ym <- lobster_parse_date %>% 
+  count(obs_year, obs_month) #give it the variables that you want to group by, month and year here
+
+
+# Just observations per year per site
+lobster_ysite <- lobster_parse_date %>% 
+  count(obs_year, site)
+
+
+# Just observations per site
+lobster_site <- lobster_parse_date %>% 
+  count(site)
+
+
+
+# Now create summary statistics tables with multiple types of stats (mean, standard deviation, sample distribution)
+# group_by and summarize and n()
+
+lobster_summary <- lobster_parse_date %>% 
+  group_by(site) %>% 
+  summarize(
+    mean_size = mean(size_mm, na.rm = TRUE), #use to remove any na values
+    sd_size = sd(size_mm, na.rm = TRUE), #get's standard deviation
+    sample_n = n()
+  )
+
+
+```
+
+
+Confidence intervals and t-tests.
+
+Use the 't-test()' function to find confidence intervals and perform t-tests
+```{r}
+
+# t distribution = use when you don't know the pop varience, accounts for uncertainty when dealing with smaller sample sizes (usually 30 or less)
+# find Confidence intervals of observations at the IVEE site
+
+ivee_lobsters <- lobster_tidy %>% 
+  filter(site == "IVEE") %>% 
+  pull(size_mm)
+
+# t-test to find confidence interval, read in console: mean lob size is significantly less than zero (p-value < 2.2e-16). Also shows only one sample is observed, number of lobsters
+# single sample mean: 'mean of x 73.57968'  
+# confidence interval is NOT about true pop range, IS about sample distribution means instead
+
+t.test(ivee_lobsters) 
+
+# OR if you don't wnat to filter and pull 
+
+t.test(lobster_tidy$size_mm)
+
+```
+
+Two-sample t-test: 
+Is there a significant difference in mean lobster lengths between Naples Reef and Mohawk Reef? 
+
+```{r}
+
+napl_sample <- lobster_tidy %>% 
+  filter(site == "NAPL") %>% 
+  pull(size_mm)
+
+mohk_sample <- lobster_tidy %>% 
+  filter(site == "MOHK") %>% 
+  pull(size_mm)
+
+mohk_napl_ttest <- t.test(napl_sample, mohk_sample)
+
+mohk_napl_ttest
+
+# P-value (p-value < 2.2e-16) = as close to zero as the t-test will let you get
+# there is only a 2.2e-16 probability that you could have taken 2 samples from populations and reached these 2 different 
+# Infer that these sampels were drawn from populations that have different overall means, rather than the chance that we drew them from populations with similar means and by 2.2e-16 probability they were this different. (78.18454  66.86833)
+
+
+```
+
+INLINE REFERENCING 
+Mean lobster size differed significantly between Mohawk and Naples reefs:
+(t(`r mohk_napl_ttest$parameter`) = 19.849)...
+
+Maybe an easier way to run a t.test with multiple observations
+```{r}
+
+lobster_2sample <- lobster_tidy %>% 
+  filter(site %in% c("NAPL", "MOHK"))
+
+t.test_2 <- t.test(size_mm ~ site, data = lobster_2sample)
+
+t.test_2
+```
+
+```{r}
+
+# Heat map
+
+ggplot(data = lobster_ysite, aes(x = obs_year, 
+                                 y = site)) +
+  geom_tile(aes(fill = n))
+
+```
+
